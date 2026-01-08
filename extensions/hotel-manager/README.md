@@ -12,13 +12,6 @@ Manage your [Hotel](https://github.com/typicode/hotel) apps directly from Raycas
 - **Open Project Folder**: Open the app's directory in Finder (Ctrl + Enter).
 - **Restart**: Restart the app (Cmd + Shift + R).
 
-## Installation
-
-1.  Ensure you have [Node.js](https://nodejs.org/) and [Raycast](https://raycast.com/) installed.
-2.  Navigate to this directory in your terminal.
-3.  Run `npm install` to install dependencies.
-4.  Run `npm run dev` to start the development server and import the extension into Raycast.
-
 ## Requirements
 
 - Hotel must be running (`hotel start`).

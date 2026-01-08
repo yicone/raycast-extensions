@@ -6,9 +6,9 @@ import {
   Toast,
   Icon,
   Color,
+  getPreferenceValues,
 } from "@raycast/api";
 import { useFetch } from "@raycast/utils";
-import fetch from "node-fetch";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -28,6 +28,42 @@ interface HotelServers {
 }
 
 const HOTEL_URL = "http://localhost:2000";
+
+// Mock data for screenshots
+const mockServers: HotelServers = {
+  "my-app": {
+    target: "http://localhost:3000",
+    status: "running",
+    command: ["npm", "start"],
+    env: {
+      PORT: "3000",
+    },
+  },
+  "api-server": {
+    target: "http://localhost:4000",
+    status: "running",
+    command: ["node", "server.js"],
+    env: {
+      PORT: "4000",
+    },
+  },
+  "stopped-app": {
+    target: "http://localhost:5000",
+    status: "stopped",
+    command: ["python", "app.py"],
+    env: {
+      PORT: "5000",
+    },
+  },
+  "react-dashboard": {
+    target: "http://localhost:3001",
+    status: "running",
+    command: ["yarn", "dev"],
+    env: {
+      PORT: "3001",
+    },
+  },
+};
 
 function getHotelTld(): string {
   // 1. Check ~/.hotel/conf.json
@@ -50,20 +86,34 @@ function getHotelTld(): string {
 
 export default function Command() {
   const tld = getHotelTld();
-  const { isLoading, data, revalidate } = useFetch<HotelServers>(
-    `${HOTEL_URL}/_/servers`,
-    {
-      onError: (error) => {
-        showToast(
-          Toast.Style.Failure,
-          "Failed to fetch Hotel servers",
-          error.message,
-        );
-      },
-    },
-  );
+  const { mockMode } = getPreferenceValues<ExtensionPreferences>();
+
+  // Only fetch real data when not in mock mode
+  const { isLoading, data, revalidate } = mockMode
+    ? { isLoading: false, data: null, revalidate: () => {} }
+    : useFetch<HotelServers>(`${HOTEL_URL}/_/servers`, {
+        onError: (error) => {
+          showToast(
+            Toast.Style.Failure,
+            "Failed to fetch Hotel servers",
+            error.message,
+          );
+        },
+      });
+
+  // Use mock data if mock mode is enabled
+  const serversData = mockMode ? mockServers : data;
 
   const toggleServer = async (name: string, action: "start" | "stop") => {
+    if (mockMode) {
+      // In mock mode, simulate server state change
+      showToast(
+        Toast.Style.Success,
+        `${action === "start" ? "Started" : "Stopped"} ${name}`,
+      );
+      return;
+    }
+
     try {
       const response = await fetch(`${HOTEL_URL}/_/servers/${name}/${action}`, {
         method: "POST",
@@ -84,9 +134,12 @@ export default function Command() {
   };
 
   return (
-    <List isLoading={isLoading} searchBarPlaceholder="Search Hotel apps...">
-      {data &&
-        Object.entries(data).map(([name, info]) => {
+    <List
+      isLoading={isLoading && !mockMode}
+      searchBarPlaceholder="Search Hotel apps..."
+    >
+      {serversData &&
+        Object.entries(serversData).map(([name, info]) => {
           const isRunning = info.status !== "stopped";
           const appUrl = `http://${name}.${tld}`;
           const localUrl = info.target || "";
@@ -101,7 +154,14 @@ export default function Command() {
                   ? { source: Icon.Circle, tintColor: Color.Green }
                   : { source: Icon.Circle, tintColor: Color.Red }
               }
-              accessories={[{ text: isRunning ? "ON" : "OFF" }]}
+              accessories={[
+                {
+                  tag: {
+                    value: isRunning ? "ON" : "OFF",
+                    color: isRunning ? Color.Green : Color.Red,
+                  },
+                },
+              ]}
               actions={
                 <ActionPanel>
                   <ActionPanel.Section>
